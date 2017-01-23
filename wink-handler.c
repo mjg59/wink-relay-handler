@@ -55,7 +55,7 @@ int mqtt_connect(Network *n, MQTTClient *c, char *buf, char *readbuf) {
 
 	NetworkInit(n);
 
-	ret = NetworkConnect(n, MQTT_SERVER, MQTT_PORT);
+	ret = NetworkConnect(n, MQTT_HOST, MQTT_PORT);
 	if (ret < 0)
 		return ret;
 
