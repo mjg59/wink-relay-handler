@@ -16,6 +16,7 @@ struct configuration {
 	char *username;
 	char *password;
 	char *host;
+	char *clientid;
 	int port;
 };
 
@@ -76,7 +77,11 @@ int mqtt_connect(Network *n, MQTTClient *c, char *buf, char *readbuf) {
 
 	data.willFlag = 0;
 	data.MQTTVersion = 4;
-	data.clientID.cstring = "Wink_Relay";
+	if (config.clientid != NULL) {
+		data.clientID.cstring = config.clientid;
+	} else {
+		data.clientID.cstring = "Wink_Relay";
+	}
 	data.keepAliveInterval = 10;
 	data.cleansession = 1;
 	if (config.username != NULL) {
@@ -99,6 +104,8 @@ static int config_handler(void* data, const char* section, const char* name,
 		config.username = strdup(value);
 	} else if (strcmp(name, "password") == 0) {
 		config.password = strdup(value);
+	} else if (strcmp(name, "clientid") == 0) {
+		config.clientid = strdup(value);
 	} else if (strcmp(name, "host") == 0) {
 		config.host = strdup(value);
 	} else if (strcmp(name, "port") == 0) {
