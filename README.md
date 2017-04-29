@@ -6,7 +6,7 @@ This is a simple app that can be run on a Wink Relay to turn it into a generic M
 Building
 --------
 
-You'll need the Android NDK installed. Edit wink-handler.c and set MQTT_HOST and MQTT_PORT appropriately, and then run ANDROID_NDK=/path/to/android/Ndk make
+You'll need the Android NDK installed. Run ANDROID_NDK=/path/to/android/Ndk make
 
 Installing
 ----------
@@ -36,7 +36,17 @@ cp /sdcard/wink0handler /system/bin/edisonwink
 chmod 755 /system/bin/edisonwink
 ```
 
-and reset your Relay
+Now write a config file that looks something like:
+
+```
+host=192.168.1.5
+port=1883
+user=username
+password=password
+```
+and put that in /sdcard/mqtt.ini on the Wink Relay. Leave out the user and password lines if your MQTT broker doesn't require authentication. host and port are the hostname or IP address of your MQTT broker and the port it's running on.
+
+Finally, reset your Relay.
 
 ```
 reboot

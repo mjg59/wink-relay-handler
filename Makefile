@@ -5,7 +5,7 @@ MQTTPACKET=MQTTPacket/src/MQTTFormat.c MQTTPacket/src/MQTTPacket.c MQTTPacket/sr
 
 MQTTCLIENT=MQTTClient-C/src/MQTTClient.c MQTTClient-C/src/linux/MQTTLinux.c
 
-wink-handler: wink-handler.c ${MQTTPACKET} ${MQTTCLIENT}
+wink-handler: wink-handler.c ini.c ${MQTTPACKET} ${MQTTCLIENT}
 
 clean:
 	rm -f wink-handler

@@ -10,8 +10,16 @@
 
 #include <MQTTClient.h>
 
-#define MQTT_HOST "hostname"
-#define MQTT_PORT 1833
+#include "ini.h"
+
+struct configuration {
+	char *username;
+	char *password;
+	char *host;
+	int port;
+};
+
+static struct configuration config;
 
 void handle_relay1(MessageData *md)
 {
@@ -55,7 +63,12 @@ int mqtt_connect(Network *n, MQTTClient *c, char *buf, char *readbuf) {
 
 	NetworkInit(n);
 
-	ret = NetworkConnect(n, MQTT_HOST, MQTT_PORT);
+	if (config.host == NULL || config.port == 0) {
+		fprintf(stderr, "No valid configuration\n");
+		return 1;
+	}
+
+	ret = NetworkConnect(n, config.host, config.port);
 	if (ret < 0)
 		return ret;
 
@@ -66,12 +79,32 @@ int mqtt_connect(Network *n, MQTTClient *c, char *buf, char *readbuf) {
 	data.clientID.cstring = "Wink_Relay";
 	data.keepAliveInterval = 10;
 	data.cleansession = 1;
-	
+	if (config.username != NULL) {
+		data.username.cstring = config.username;
+	}
+	if (config.password != NULL) {
+		data.password.cstring = config.password;
+	}
 	ret = MQTTConnect(c, &data);
 	if (ret < 0)
 		return ret;
 
 	return 0;
+}
+
+static int config_handler(void* data, const char* section, const char* name,
+			  const char* value)
+{
+	if (strcmp(name, "user") == 0) {
+		config.username = strdup(value);
+	} else if (strcmp(name, "password") == 0) {
+		config.password = strdup(value);
+	} else if (strcmp(name, "host") == 0) {
+		config.host = strdup(value);
+	} else if (strcmp(name, "port") == 0) {
+		config.port = atoi(value);
+	}
+	return 1;
 }
 
 int main() {
@@ -94,6 +127,11 @@ int main() {
 	MQTTClient c;
 	MQTTMessage message;
 	struct rlimit limits;
+
+	if (ini_parse("/sdcard/mqtt.ini", config_handler, NULL) < 0) {
+		printf("Can't load /sdcard/mqtt.ini\n");
+		return 1;
+	}
 
 	uswitch = open("/sys/class/gpio/gpio8/value", O_RDONLY);
 	lswitch = open("/sys/class/gpio/gpio7/value", O_RDONLY);
