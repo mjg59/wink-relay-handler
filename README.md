@@ -44,8 +44,16 @@ port=1883
 user=username
 password=password
 clientid=Wink_Relay1
+topic_prefix=Relay1
 ```
-and put that in /sdcard/mqtt.ini on the Wink Relay. Leave out the user and password lines if your MQTT broker doesn't require authentication. host and port are the hostname or IP address of your MQTT broker and the port it's running on. clientid is the client ID that your Relay will present to the broker. If you don't provide one, it'll default to Wink_Relay .
+and put that in /sdcard/mqtt.ini on the Wink Relay.
+
+Host: Hostname or IP address of the MQTT broker
+Port: Port of the MQTT broker
+User: Username used to authenticate to the MQTT broker (optional)
+Password: Password used to authenticate to the MQTT broker (optional)
+clientid: Client ID passed to the broker (optional - Wink_Relay if not provided)
+topic_prefix: Prefix to the topics presented by the device (optional - Relay if not provided)
 
 Finally, reset your Relay.
 
