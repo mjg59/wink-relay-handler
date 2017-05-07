@@ -439,7 +439,7 @@ int MQTTSubscribe(MQTTClient* c, const char* topicFilter, enum QoS qos, messageH
             {
                 if (c->messageHandlers[i].topicFilter == 0)
                 {
-                    c->messageHandlers[i].topicFilter = topicFilter;
+                    c->messageHandlers[i].topicFilter = strdup(topicFilter);
                     c->messageHandlers[i].fp = messageHandler;
                     rc = 0;
                     break;
