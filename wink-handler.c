@@ -19,6 +19,7 @@ struct configuration {
 	char *clientid;
 	char *topic_prefix;
 	int port;
+	int screen_timeout;
 };
 
 static struct configuration config;
@@ -113,6 +114,8 @@ static int config_handler(void* data, const char* section, const char* name,
 		config.host = strdup(value);
 	} else if (strcmp(name, "port") == 0) {
 		config.port = atoi(value);
+	} else if (strcmp(name, "screen_timeout") == 0) {
+		config.screen_timeout = atoi(value);
 	}
 	return 1;
 }
@@ -138,6 +141,7 @@ int main() {
 	MQTTMessage message;
 	struct rlimit limits;
 	char *prefix, topic[1024];
+	int timeout;
 
 	if (ini_parse("/sdcard/mqtt.ini", config_handler, NULL) < 0) {
 		printf("Can't load /sdcard/mqtt.ini\n");
@@ -148,6 +152,12 @@ int main() {
 		prefix = config.topic_prefix;
 	} else {
 		prefix = strdup("Relay");
+	}
+
+	if (config.screen_timeout == 0) {
+		timeout = 10;
+	} else {
+		timeout = config.screen_timeout;
 	}
 
 	uswitch = open("/sys/class/gpio/gpio8/value", O_RDONLY);
@@ -281,7 +291,7 @@ int main() {
 				write(screen, &power, sizeof(power));
 			}
 		}
-		if ((time(NULL) - last_input > 10) && power == '1') {
+		if ((time(NULL) - last_input > timeout) && power == '1') {
 			power = '0';
 			write(screen, &power, sizeof(power));
 		}
