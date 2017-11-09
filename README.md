@@ -45,15 +45,17 @@ user=username
 password=password
 clientid=Wink_Relay1
 topic_prefix=Relay1
+screen_timeout=20
 ```
 and put that in /sdcard/mqtt.ini on the Wink Relay.
 
-Host: Hostname or IP address of the MQTT broker
-Port: Port of the MQTT broker
-User: Username used to authenticate to the MQTT broker (optional)
-Password: Password used to authenticate to the MQTT broker (optional)
-clientid: Client ID passed to the broker (optional - Wink_Relay if not provided)
-topic_prefix: Prefix to the topics presented by the device (optional - Relay if not provided)
+host: Hostname or IP address of the MQTT broker  
+port: Port of the MQTT broker  
+user: Username used to authenticate to the MQTT broker (optional)  
+password: Password used to authenticate to the MQTT broker (optional)  
+clientid: Client ID passed to the broker (optional - Wink_Relay if not provided)  
+topic_prefix: Prefix to the topics presented by the device (optional - Relay if not provided)  
+screen_timeout: Time in seconds until the screen turns off after a touch or proximity detection (optional - 10s if not provided)
 
 Finally, reset your Relay.
 
