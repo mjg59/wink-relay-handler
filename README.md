@@ -3,8 +3,15 @@ wink-handler
 
 This is a simple app that can be run on a Wink Relay to turn it into a generic MQTT device. It will send button pushes and sensor data to the configured MQTT server, and will accept commands to turn on and off the built-in relays.
 
+Download
+--------
+
+Grab the zip file from https://github.com/mjg59/wink-relay-handler/releases and extract it.
+
 Building
 --------
+
+Note: you don't need to do this if you've downloaded the binary - just use the wink-handler file from the zip archive.
 
 You'll need the Android NDK installed. Run ANDROID_NDK=/path/to/android/Ndk make
 
