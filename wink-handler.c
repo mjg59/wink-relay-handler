@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdbool.h>
 #include <linux/input.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -20,44 +21,62 @@ struct configuration {
 	char *topic_prefix;
 	int port;
 	int screen_timeout;
+	bool switch_toggle;
+	bool send_switch;
 };
 
 static struct configuration config;
 
-void handle_relay1(MessageData *md)
+#define UPPER_RELAY "/sys/class/gpio/gpio203/value"
+#define LOWER_RELAY "/sys/class/gpio/gpio204/value"
+
+void toggle_relay(char *path)
 {
 	int fd;
-	MQTTMessage *message = md->message;
+	char state;
+
+	fd = open(path, O_RDWR);
+	read(fd, &state, sizeof(state));
+	lseek(fd, 0, SEEK_SET);
+	if (state == '0') {
+		state = '1';
+	} else {
+		state = '0';
+	}
+	write(fd, &state, 1);
+	close(fd);
+}
+
+void handle_relay(char *path, char *payload, int len)
+{
+	int fd;
 	char power;
 
 	signal(SIGPIPE, SIG_IGN);
 
-        fd = open("/sys/class/gpio/gpio203/value", O_RDWR);
-	if (strncmp(message->payload, "ON", message->payloadlen) == 0) {
+        fd = open(path, O_RDWR);
+	if (strncmp(payload, "ON", len) == 0) {
 		power = '1';
 		write(fd, &power, 1);
-	} else if (strncmp(message->payload, "OFF", message->payloadlen) == 0) {
+	} else if (strncmp(payload, "OFF", len) == 0) {
 		power = '0';
 		write(fd, &power, 1);
 	}
 	close(fd);
 }
 
+void handle_relay1(MessageData *md)
+{
+	MQTTMessage *message = md->message;
+
+        handle_relay(UPPER_RELAY, message->payload, message->payloadlen);
+}
+
 void handle_relay2(MessageData *md)
 {
-	int fd;
 	MQTTMessage *message = md->message;
-	char power;
 
-        fd = open("/sys/class/gpio/gpio204/value", O_RDWR);
-	if (strncmp(message->payload, "ON", message->payloadlen) == 0) {
-		power = '1';
-		write(fd, &power, 1);
-	} else if (strncmp(message->payload, "OFF", message->payloadlen) == 0) {
-		power = '0';
-		write(fd, &power, 1);
-	}
-	close(fd);
+        handle_relay(LOWER_RELAY, message->payload, message->payloadlen);
 }
 
 int mqtt_connect(Network *n, MQTTClient *c, char *buf, char *readbuf) {
@@ -116,6 +135,18 @@ static int config_handler(void* data, const char* section, const char* name,
 		config.port = atoi(value);
 	} else if (strcmp(name, "screen_timeout") == 0) {
 		config.screen_timeout = atoi(value);
+	} else if (strcmp(name, "switch_toggle") == 0) {
+		if (strcmp(value, "true") == 0) {
+			config.switch_toggle = true;
+		} else if (strcmp(value, "false") == 0) {
+			config.switch_toggle = false;
+		}
+	} else if (strcmp(name, "send_switch") == 0) {
+		if (strcmp(value, "true") == 0) {
+			config.send_switch = true;
+		} else if (strcmp(value, "false") == 0) {
+			config.send_switch = false;
+		}
 	}
 	return 1;
 }
@@ -142,6 +173,8 @@ int main() {
 	struct rlimit limits;
 	char *prefix, topic[1024];
 	int timeout;
+
+	config.send_switch = true;
 
 	if (ini_parse("/sdcard/mqtt.ini", config_handler, NULL) < 0) {
 		printf("Can't load /sdcard/mqtt.ini\n");
@@ -224,12 +257,16 @@ int main() {
 		read(uswitch, buffer, sizeof(buffer));
 		if (buffer[0] == '0' && uswitchstate == 1) {
 			uswitchstate = 0;
-			message.qos = 1;
-			message.payload = payload;
-			sprintf(payload, "on");
-			message.payloadlen = strlen(payload);
-			sprintf(topic, "%s/switches/upper", prefix);
-			MQTTPublish(&c, topic, &message);
+			if (config.send_switch) {
+				message.qos = 1;
+				message.payload = payload;
+				sprintf(payload, "on");
+				message.payloadlen = strlen(payload);
+				sprintf(topic, "%s/switches/upper", prefix);
+				MQTTPublish(&c, topic, &message);
+			}
+			if (config.switch_toggle)
+				toggle_relay(UPPER_RELAY);
 		} else if (buffer[0] == '1' && uswitchstate == 0) {
 			uswitchstate = 1;
 		}
@@ -237,12 +274,16 @@ int main() {
 		read(lswitch, buffer, sizeof(buffer));
 		if (buffer[0] == '0' && lswitchstate == 1) {
 			lswitchstate = 0;
-			message.qos = 1;
-			message.payload = payload;
-			sprintf(payload, "on");
-			message.payloadlen = strlen(payload);
-			sprintf(topic, "%s/switches/lower", prefix);
-			MQTTPublish(&c, topic, &message);
+			if (config.send_switch) {
+				message.qos = 1;
+				message.payload = payload;
+				sprintf(payload, "on");
+				message.payloadlen = strlen(payload);
+				sprintf(topic, "%s/switches/lower", prefix);
+				MQTTPublish(&c, topic, &message);
+			}
+			if (config.switch_toggle)
+				toggle_relay(LOWER_RELAY);
 		} else if (buffer[0] == '1' && lswitchstate == 0) {
 			lswitchstate = 1;
 		}
