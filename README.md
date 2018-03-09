@@ -1,7 +1,7 @@
 wink-handler
 ============
 
-This is a simple app that can be run on a Wink Relay to turn it into a generic MQTT device. It will send button pushes and sensor data to the configured MQTT server, and will accept commands to turn on and off the built-in relays.
+This is a simple app that can be run on a Wink Relay to turn it into a generic MQTT device. It will send button pushes and sensor data to the configured MQTT server, and will accept commands to turn on and off the built-in relays and screen.
 
 Download
 --------
@@ -21,7 +21,7 @@ Installing
 You'll need adb access to a rooted Wink Relay. Disable the existing Wink control software by running
 
 ```
-pm disable http://com.quirky.android .wink.projectone
+pm disable http://com.quirky.android.wink.projectone
 ```
 
 as root. Remount /system read-write:
@@ -39,7 +39,7 @@ rm /system/bin/edisonwink
 adb push wink-handler to /sdcard and then copy it over edisonwink and fix permissions:
 
 ```
-cp /sdcard/wink0handler /system/bin/edisonwink
+cp /sdcard/wink-handler /system/bin/edisonwink
 chmod 755 /system/bin/edisonwink
 ```
 
@@ -64,8 +64,8 @@ user: Username used to authenticate to the MQTT broker (optional)
 password: Password used to authenticate to the MQTT broker (optional)  
 clientid: Client ID passed to the broker (optional - Wink_Relay if not provided)  
 topic_prefix: Prefix to the topics presented by the device (optional - Relay if not provided)  
-screen_timeout: Time in seconds until the screen turns off after a touch or proximity detection (optional - 10s if not provided)
-switch_toggle: Whether pressing the switch should toggle the relay directly (optional - false if not provided)
+screen_timeout: Time in seconds until the screen turns off after a touch or proximity detection (optional - 10s if not provided)  
+switch_toggle: Whether pressing the switch should toggle the relay directly (optional - false if not provided)  
 send_switch: Whether pressing the switch should generate an MQTT message (optional - true if not provided)
 
 Finally, reset your Relay.
@@ -140,7 +140,15 @@ Relay/relays/lower_state
 
 state topics.
 
-Screen control
---------------
+Screen
+------
 
-The screen will automatically turn on if the screen is touched and off 10 seconds later. It will also turn on and remain on if the proximity sensor is triggered, turning off 10 seconds after the last proximity detection.
+The screen will turn on if the screen is touched or if the proximity sensor is triggered. It can also be controlled via the
+
+```
+Relay/screen
+```
+
+command topic: "ON" turns the screen on, "OFF" turns the screen off.
+
+The screen will turn off 10 seconds after the last touch, proximity, or mqtt "ON" command by default. This duration can be configured via the `screen_timeout` parameter in mqtt.ini.
