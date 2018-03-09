@@ -262,6 +262,7 @@ int main() {
 				message.payload = payload;
 				sprintf(payload, "on");
 				message.payloadlen = strlen(payload);
+				message.retained = 0;
 				sprintf(topic, "%s/switches/upper", prefix);
 				MQTTPublish(&c, topic, &message);
 			}
@@ -279,6 +280,7 @@ int main() {
 				message.payload = payload;
 				sprintf(payload, "on");
 				message.payloadlen = strlen(payload);
+				message.retained = 0;
 				sprintf(topic, "%s/switches/lower", prefix);
 				MQTTPublish(&c, topic, &message);
 			}
