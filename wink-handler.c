@@ -21,6 +21,7 @@ struct configuration {
 	char *topic_prefix;
 	int port;
 	int screen_timeout;
+	int motion_timeout;
 	bool switch_toggle;
 	bool send_switch;
 };
@@ -135,6 +136,8 @@ static int config_handler(void* data, const char* section, const char* name,
 		config.port = atoi(value);
 	} else if (strcmp(name, "screen_timeout") == 0) {
 		config.screen_timeout = atoi(value);
+	} else if (strcmp(name, "motion_timeout") == 0) {
+		config.motion_timeout = atoi(value);
 	} else if (strcmp(name, "switch_toggle") == 0) {
 		if (strcmp(value, "true") == 0) {
 			config.switch_toggle = true;
@@ -156,9 +159,11 @@ int main() {
 	int uswitch, lswitch, input, screen, relay1, relay2, temp, humid, prox;
 	int uswitchstate=1;
 	int lswitchstate=1;
+	bool motion = 0;
 	char urelaystate=' ';
 	char lrelaystate=' ';
 	int last_input = time(NULL);
+	int last_motion = time(NULL);
 	struct input_event event;
 	unsigned char buf[100], readbuf[100];
 	char buffer[30];
@@ -172,7 +177,8 @@ int main() {
 	MQTTMessage message;
 	struct rlimit limits;
 	char *prefix, topic[1024];
-	int timeout;
+	int s_timeout;
+	int m_timeout;
 
 	config.send_switch = true;
 
@@ -188,9 +194,15 @@ int main() {
 	}
 
 	if (config.screen_timeout == 0) {
-		timeout = 10;
+		s_timeout = 10;
 	} else {
-		timeout = config.screen_timeout;
+		s_timeout = config.screen_timeout;
+	}
+
+	if (config.motion_timeout == 0) {
+		m_timeout = 30;
+	} else {
+		m_timeout = config.motion_timeout;
 	}
 
 	uswitch = open("/sys/class/gpio/gpio8/value", O_RDONLY);
@@ -323,6 +335,17 @@ int main() {
 				power = '1';
 				write(screen, &power, sizeof(power));
 			}
+			last_motion = time(NULL);
+			if (!motion) {
+				motion = 1;
+				message.qos = 1;
+				message.payload = payload;
+				sprintf(payload, "on");
+				message.payloadlen = strlen(payload);
+				message.retained = 1;
+				sprintf(topic, "%s/motion", prefix);
+				MQTTPublish(&c, topic, &message);
+			}
 		}
 
 		while (read(input, &event, sizeof(event)) > 0) {
@@ -332,10 +355,23 @@ int main() {
 				write(screen, &power, sizeof(power));
 			}
 		}
-		if ((time(NULL) - last_input > timeout) && power == '1') {
+		
+		if ((time(NULL) - last_input > s_timeout) && power == '1') {
 			power = '0';
 			write(screen, &power, sizeof(power));
 		}
+		
+		if ((time(NULL) - last_motion > m_timeout) && motion) {
+			motion = 0;
+			message.qos = 1;
+			message.payload = payload;
+			sprintf(payload, "off");
+			message.payloadlen = strlen(payload);
+			message.retained = 1;
+			sprintf(topic, "%s/motion", prefix);
+			MQTTPublish(&c, topic, &message);
+		}
+		
 		if (MQTTYield(&c, 100) < 0)
 			mqtt_connect(&n, &c, buf, readbuf);
 	}
