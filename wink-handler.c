@@ -23,6 +23,7 @@ struct configuration {
 	int screen_timeout;
 	bool switch_toggle;
 	bool send_switch;
+	float prox_delta;
 };
 
 static struct configuration config;
@@ -147,6 +148,8 @@ static int config_handler(void* data, const char* section, const char* name,
 		} else if (strcmp(value, "false") == 0) {
 			config.send_switch = false;
 		}
+	} else if (strcmp(name, "prox_delta") == 0) {
+		config.prox_delta = atof(value);
 	}
 	return 1;
 }
@@ -173,6 +176,8 @@ int main() {
 	struct rlimit limits;
 	char *prefix, topic[1024];
 	int timeout;
+	int last_proximity;
+	float delta;
 
 	config.send_switch = true;
 
@@ -191,6 +196,12 @@ int main() {
 		timeout = 10;
 	} else {
 		timeout = config.screen_timeout;
+	}
+
+	if (config.prox_delta == 0) {
+		delta = 0.75;
+	} else {
+		delta = config.prox_delta;
 	}
 
 	uswitch = open("/sys/class/gpio/gpio8/value", O_RDONLY);
@@ -317,13 +328,14 @@ int main() {
 		lseek(prox, 0, SEEK_SET);
 		read(prox, proxdata, sizeof(proxdata));
 		proximity = strtol(proxdata, NULL, 10);
-		if (proximity >= 5000) {
+		if (proximity > (last_proximity * (1 + delta / 100))) {
 			last_input = time(NULL);
 			if (power != '1') {
 				power = '1';
 				write(screen, &power, sizeof(power));
 			}
 		}
+		last_proximity = proximity;
 
 		while (read(input, &event, sizeof(event)) > 0) {
 			last_input = time(NULL);
