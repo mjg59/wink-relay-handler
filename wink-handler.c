@@ -29,8 +29,11 @@ struct configuration {
 
 static struct configuration config;
 
+int last_input;
+
 #define UPPER_RELAY "/sys/class/gpio/gpio203/value"
 #define LOWER_RELAY "/sys/class/gpio/gpio204/value"
+#define SCREEN "/sys/class/gpio/gpio30/value"
 
 void toggle_relay(char *path)
 {
@@ -79,6 +82,27 @@ void handle_relay2(MessageData *md)
 	MQTTMessage *message = md->message;
 
         handle_relay(LOWER_RELAY, message->payload, message->payloadlen);
+}
+
+void handle_screen(MessageData *md)
+{
+	int fd;
+	char power;
+	MQTTMessage *message = md->message;
+
+	fd = open(SCREEN, O_RDWR);
+	lseek(fd, 0, SEEK_SET);
+	read(fd, &power, sizeof(power));
+
+	if (strncmp(message->payload, "ON", message->payloadlen) == 0) {
+		last_input = time(NULL);
+		power = '1';
+		write(fd, &power, 1);
+	} else if (strncmp(message->payload, "OFF", message->payloadlen) == 0) {
+		power = '0';
+		write(fd, &power, 1);
+	}
+	close(fd);
 }
 
 int mqtt_connect(Network *n, MQTTClient *c, char *buf, char *readbuf) {
@@ -185,6 +209,7 @@ int main() {
 	int last_proximity;
 	float delta;
 
+	last_input = time(NULL);
 	config.send_switch = true;
 
 	if (ini_parse("/sdcard/mqtt.ini", config_handler, NULL) < 0) {
@@ -229,9 +254,6 @@ int main() {
 	write(relay1, &power, 1);
 	write(relay2, &power, 1);
 
-	lseek(screen, 0, SEEK_SET);
-	read(screen, &power, sizeof(power));
-
 	limits.rlim_cur = RLIM_INFINITY;
 	limits.rlim_max = RLIM_INFINITY;
 	setrlimit(RLIMIT_CORE, &limits);
@@ -242,6 +264,9 @@ int main() {
 	MQTTSubscribe(&c, topic, 0, handle_relay1);
 	sprintf(topic, "%s/relays/lower", prefix);
 	MQTTSubscribe(&c, topic, 0, handle_relay2);
+	sprintf(topic, "%s/screen", prefix);
+	MQTTSubscribe(&c, topic, 0, handle_screen);
+
 
 	while (1) {
 		lseek(relay1, 0, SEEK_SET);
@@ -342,6 +367,9 @@ int main() {
 		lseek(prox, 0, SEEK_SET);
 		read(prox, proxdata, sizeof(proxdata));
 		proximity = strtol(proxdata, NULL, 10);
+		lseek(screen, 0, SEEK_SET);
+		read(screen, &power, sizeof(power));
+
 		if (proximity > (last_proximity * (1 + delta / 100))) {
 			last_input = time(NULL);
 			if (power != '1') {
