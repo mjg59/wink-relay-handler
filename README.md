@@ -68,7 +68,8 @@ topic_prefix: Prefix to the topics presented by the device (optional - Relay if 
 screen_timeout: Time in seconds until the screen turns off after a touch or proximity detection (optional - 10s if not provided)  
 motion_timeout: Time in seconds until the motion detection resets (i.e. time it takes for an "off" message to follow an "on" message)  
 switch_toggle: Whether pressing the switch should toggle the relay directly (optional - false if not provided)
-send_switch: Whether pressing the switch should generate an MQTT message (optional - true if not provided)
+send_switch: Whether pressing the switch should generate an MQTT message (optional - true if not provided)  
+prox_delta: The percentage change in proximity reading required before triggering the screen to turn on and an mqtt motion detection message (optional - 0.75 if not provided).
 
 Finally, reset your Relay.
 
@@ -157,3 +158,10 @@ Screen control
 --------------
 
 The screen will automatically turn on if the screen is touched and off 10 seconds later. It will also turn on and remain on if the proximity sensor is triggered, turning off 10 seconds after the last proximity detection.
+
+Proximity Sensor Sensitivity
+----------------------------
+
+The proximity sensor on the front of the Wink Relay triggers both the screen to turn on and an MQTT motion message to be sent. But, the sensitivity of these proximity sensors across different Wink Relay units is not uniform.
+
+Proximity sensor sensitivity can be controlled via the `prox_delta` parameter in mqtt.ini. The default sensivity is 0.75 if `prox_delta` is not specified. This parameter represents the percentage change in proximity sensor reading required before triggering the screen to turn on and an MQTT motion detection message to be sent. You can make the proximity sensor more "sensitive" by reducing the `prox_delta` value (e.g. to 0.6 or 0.5). If you find that the screen turns on by itself (or won't turn off), increase the `prox_delta` value in small increments (e.g. to 0.8, 0.9, 1.0, etc.)
