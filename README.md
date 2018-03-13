@@ -1,7 +1,7 @@
 wink-handler
 ============
 
-This is a simple app that can be run on a Wink Relay to turn it into a generic MQTT device. It will send button pushes and sensor data to the configured MQTT server, and will accept commands to turn on and off the built-in relays.
+This is a simple app that can be run on a Wink Relay to turn it into a generic MQTT device. It will send button pushes, sensor data, and motion (proximity sensor) detection to the configured MQTT server, and will accept commands to turn on and off the built-in relays.
 
 Download
 --------
@@ -53,6 +53,7 @@ password=password
 clientid=Wink_Relay1
 topic_prefix=Relay1
 screen_timeout=20
+motion_timeout=60
 switch_toggle=false
 send_switch=true
 ```
@@ -64,7 +65,8 @@ user: Username used to authenticate to the MQTT broker (optional)
 password: Password used to authenticate to the MQTT broker (optional)  
 clientid: Client ID passed to the broker (optional - Wink_Relay if not provided)  
 topic_prefix: Prefix to the topics presented by the device (optional - Relay if not provided)  
-screen_timeout: Time in seconds until the screen turns off after a touch or proximity detection (optional - 10s if not provided)
+screen_timeout: Time in seconds until the screen turns off after a touch or proximity detection (optional - 10s if not provided)  
+motion_timeout: Time in seconds until the motion detection resets (i.e. time it takes for an "off" message to follow an "on" message)  
 switch_toggle: Whether pressing the switch should toggle the relay directly (optional - false if not provided)
 send_switch: Whether pressing the switch should generate an MQTT message (optional - true if not provided)  
 prox_delta: The percentage change in proximity reading required before triggering the screen to turn on and an mqtt motion detection message (optional - 0.75 if not provided).
@@ -93,6 +95,17 @@ Relay/sensors/humidity
 ```
 
 state topic.
+
+Motion
+------
+
+Motion detection (via the proximity sensor on the front of the Wink Relay) will send an "on" message to
+
+```
+Relay/motion
+```
+
+state topic. An "off" message will follow after 30 seconds, by default. This duration can be configured via the `motion_timeout` parameter in mqtt.ini.
 
 Buttons
 -------
