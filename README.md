@@ -1,6 +1,12 @@
 wink-handler
 ============
 
+**This project is deprecated**
+
+**Use [wink-relay-manager](https://github.com/jimpastos/wink-relay-manager) instead**
+
+**Original README follows**
+
 This is a simple app that can be run on a Wink Relay to turn it into a generic MQTT device. It will send button pushes, sensor data, and motion (proximity sensor) detection to the configured MQTT server, and will accept commands to turn on and off the built-in relays.
 
 Download
