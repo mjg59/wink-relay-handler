@@ -30,6 +30,7 @@ struct configuration {
 static struct configuration config;
 
 int last_input;
+char* prefix;
 
 #define UPPER_RELAY "/sys/class/gpio/gpio203/value"
 #define LOWER_RELAY "/sys/class/gpio/gpio204/value"
@@ -107,6 +108,9 @@ void handle_screen(MessageData *md)
 
 int mqtt_connect(Network *n, MQTTClient *c, char *buf, char *readbuf) {
 	int ret;
+	char subtopic_relay1[1024];
+	char subtopic_relay2[1024];
+	char subtopic_screen[1024];
 	MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
 
 	NetworkInit(n);
@@ -140,6 +144,13 @@ int mqtt_connect(Network *n, MQTTClient *c, char *buf, char *readbuf) {
 	ret = MQTTConnect(c, &data);
 	if (ret < 0)
 		return ret;
+
+	sprintf(subtopic_relay1, "%s/relays/upper", prefix);
+	MQTTSubscribe(c, subtopic_relay1, 0, handle_relay1);
+	sprintf(subtopic_relay2, "%s/relays/lower", prefix);
+	MQTTSubscribe(c, subtopic_relay2, 0, handle_relay2);
+	sprintf(subtopic_screen, "%s/screen", prefix);
+	MQTTSubscribe(c, subtopic_screen, 0, handle_screen);
 
 	return 0;
 }
@@ -203,7 +214,7 @@ int main() {
 	MQTTClient c;
 	MQTTMessage message;
 	struct rlimit limits;
-	char *prefix, topic[1024];
+	char pubtopic[1024];
 	int s_timeout;
 	int m_timeout;
 	int last_proximity;
@@ -215,12 +226,6 @@ int main() {
 	if (ini_parse("/sdcard/mqtt.ini", config_handler, NULL) < 0) {
 		printf("Can't load /sdcard/mqtt.ini\n");
 		return 1;
-	}
-
-	if (config.topic_prefix != NULL) {
-		prefix = config.topic_prefix;
-	} else {
-		prefix = strdup("Relay");
 	}
 
 	if (config.screen_timeout == 0) {
@@ -241,12 +246,18 @@ int main() {
 		delta = config.prox_delta;
 	}
 
+	if (config.topic_prefix != NULL) {
+		prefix = config.topic_prefix;
+	} else {
+		prefix = strdup("Relay");
+	}
+
 	uswitch = open("/sys/class/gpio/gpio8/value", O_RDONLY);
 	lswitch = open("/sys/class/gpio/gpio7/value", O_RDONLY);
-        screen = open("/sys/class/gpio/gpio30/value", O_RDWR);
-        relay1 = open("/sys/class/gpio/gpio203/value", O_RDWR);
-        relay2 = open("/sys/class/gpio/gpio204/value", O_RDWR);
-        input = open("/dev/input/event0", O_RDONLY | O_NONBLOCK);
+    screen = open("/sys/class/gpio/gpio30/value", O_RDWR);
+    relay1 = open("/sys/class/gpio/gpio203/value", O_RDWR);
+    relay2 = open("/sys/class/gpio/gpio204/value", O_RDWR);
+    input = open("/dev/input/event0", O_RDONLY | O_NONBLOCK);
 	temp = open("/sys/bus/i2c/devices/2-0040/temp1_input", O_RDONLY);
 	humid = open("/sys/bus/i2c/devices/2-0040/humidity1_input", O_RDONLY);
 	prox = open("/sys/devices/platform/imx-i2c.2/i2c-2/2-005a/input/input3/ps_input_data", O_RDONLY);
@@ -260,14 +271,6 @@ int main() {
 	while (mqtt_connect(&n, &c, buf, readbuf) < 0)
 		sleep(10);
 
-	sprintf(topic, "%s/relays/upper", prefix);
-	MQTTSubscribe(&c, topic, 0, handle_relay1);
-	sprintf(topic, "%s/relays/lower", prefix);
-	MQTTSubscribe(&c, topic, 0, handle_relay2);
-	sprintf(topic, "%s/screen", prefix);
-	MQTTSubscribe(&c, topic, 0, handle_screen);
-
-
 	while (1) {
 		lseek(relay1, 0, SEEK_SET);
 		read(relay1, buffer, sizeof(buffer));
@@ -280,8 +283,8 @@ int main() {
 				sprintf(payload, "ON");
 			}
 			message.payloadlen = strlen(payload);
-			sprintf(topic, "%s/relays/upper_state", prefix);
-			MQTTPublish(&c, topic, &message);
+			sprintf(pubtopic, "%s/relays/upper_state", prefix);
+			MQTTPublish(&c, pubtopic, &message);
 			urelaystate = buffer[0];
 		}
 
@@ -296,8 +299,8 @@ int main() {
 				sprintf(payload, "ON");
 			}
 			message.payloadlen = strlen(payload);
-			sprintf(topic, "%s/relays/lower_state", prefix);
-			MQTTPublish(&c, topic, &message);
+			sprintf(pubtopic, "%s/relays/lower_state", prefix);
+			MQTTPublish(&c, pubtopic, &message);
 			lrelaystate = buffer[0];
 		}
 
@@ -311,8 +314,8 @@ int main() {
 				sprintf(payload, "on");
 				message.payloadlen = strlen(payload);
 				message.retained = 0;
-				sprintf(topic, "%s/switches/upper", prefix);
-				MQTTPublish(&c, topic, &message);
+				sprintf(pubtopic, "%s/switches/upper", prefix);
+				MQTTPublish(&c, pubtopic, &message);
 			}
 			if (config.switch_toggle)
 				toggle_relay(UPPER_RELAY);
@@ -329,8 +332,8 @@ int main() {
 				sprintf(payload, "on");
 				message.payloadlen = strlen(payload);
 				message.retained = 0;
-				sprintf(topic, "%s/switches/lower", prefix);
-				MQTTPublish(&c, topic, &message);
+				sprintf(pubtopic, "%s/switches/lower", prefix);
+				MQTTPublish(&c, pubtopic, &message);
 			}
 			if (config.switch_toggle)
 				toggle_relay(LOWER_RELAY);
@@ -346,8 +349,8 @@ int main() {
 			message.payload = payload;
 			sprintf(payload, "%f", temperature/1000.0);
 			message.payloadlen = strlen(payload);
-			sprintf(topic, "%s/sensors/temperature", prefix);
-			MQTTPublish(&c, topic, &message);
+			sprintf(pubtopic, "%s/sensors/temperature", prefix);
+			MQTTPublish(&c, pubtopic, &message);
 			last_temperature = temperature;
 		}
 
@@ -359,8 +362,8 @@ int main() {
 			message.payload = payload;
 			sprintf(payload, "%f", humidity/1000.0);
 			message.payloadlen = strlen(payload);
-			sprintf(topic, "%s/sensors/humidity", prefix);
-			MQTTPublish(&c, topic, &message);
+			sprintf(pubtopic, "%s/sensors/humidity", prefix);
+			MQTTPublish(&c, pubtopic, &message);
 			last_humidity = humidity;
 		}
 
@@ -384,8 +387,8 @@ int main() {
 				sprintf(payload, "on");
 				message.payloadlen = strlen(payload);
 				message.retained = 1;
-				sprintf(topic, "%s/motion", prefix);
-				MQTTPublish(&c, topic, &message);
+				sprintf(pubtopic, "%s/motion", prefix);
+				MQTTPublish(&c, pubtopic, &message);
 			}
 		}
 		last_proximity = proximity;
@@ -410,11 +413,13 @@ int main() {
 			sprintf(payload, "off");
 			message.payloadlen = strlen(payload);
 			message.retained = 1;
-			sprintf(topic, "%s/motion", prefix);
-			MQTTPublish(&c, topic, &message);
+			sprintf(pubtopic, "%s/motion", prefix);
+			MQTTPublish(&c, pubtopic, &message);
 		}
 		
-		if (MQTTYield(&c, 100) < 0)
+		MQTTYield(&c, 100);
+
+		if (!MQTTIsConnected(&c))
 			mqtt_connect(&n, &c, buf, readbuf);
 	}
 }
