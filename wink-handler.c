@@ -189,7 +189,6 @@ int main() {
 	bool motion = 0;
 	char urelaystate=' ';
 	char lrelaystate=' ';
-	int last_input = time(NULL);
 	int last_motion = time(NULL);
 	struct input_event event;
 	unsigned char buf[100], readbuf[100];
